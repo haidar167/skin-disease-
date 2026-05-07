@@ -1,7 +1,7 @@
 # ================================================
 # 🎓 UNIVERSITY SKIN DISEASE DETECTION SYSTEM
 # ================================================
-# ✅ COMPLETE WORKING PROJECT
+# ✅ COMPLETE WORKING PROJECT WITH ENHANCED FEATURES
 # ================================================
 
 import tkinter as tk
@@ -129,6 +129,11 @@ class Database:
         self.cursor.execute('SELECT * FROM diseases')
         return self.cursor.fetchall()
     
+    def get_disease_by_id(self, disease_id):
+        """Get disease by ID"""
+        self.cursor.execute('SELECT * FROM diseases WHERE id=?', (disease_id,))
+        return self.cursor.fetchone()
+    
     def save_diagnosis(self, patient_id, disease_id, confidence, image_path):
         """Save diagnosis to database"""
         self.cursor.execute('''
@@ -137,6 +142,50 @@ class Database:
         ''', (patient_id, disease_id, confidence, image_path))
         self.conn.commit()
         return self.cursor.lastrowid
+    
+    def get_patient_diagnoses(self, patient_id):
+        """Get all diagnoses for a patient"""
+        self.cursor.execute('''
+            SELECT d.id, dis.name, d.confidence, d.diagnosis_date, d.image_path
+            FROM diagnoses d
+            JOIN diseases dis ON d.disease_id = dis.id
+            WHERE d.patient_id = ?
+            ORDER BY d.diagnosis_date DESC
+        ''', (patient_id,))
+        return self.cursor.fetchall()
+    
+    def get_diagnosis_details(self, diagnosis_id, patient_id):
+        """Get detailed diagnosis information"""
+        self.cursor.execute('''
+            SELECT d.id, dis.name, dis.description, dis.symptoms, dis.treatment, dis.prevention,
+                   d.confidence, d.diagnosis_date, d.image_path
+            FROM diagnoses d
+            JOIN diseases dis ON d.disease_id = dis.id
+            WHERE d.id = ? AND d.patient_id = ?
+        ''', (diagnosis_id, patient_id))
+        return self.cursor.fetchone()
+    
+    def add_disease(self, name, description, symptoms, treatment, prevention):
+        """Add new disease to database"""
+        try:
+            self.cursor.execute('''
+                INSERT INTO diseases (name, description, symptoms, treatment, prevention)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (name, description, symptoms, treatment, prevention))
+            self.conn.commit()
+            return True
+        except:
+            return False
+    
+    def get_total_patients(self):
+        """Get total number of patients"""
+        self.cursor.execute('SELECT COUNT(*) FROM patients')
+        return self.cursor.fetchone()[0]
+    
+    def get_total_diagnoses(self):
+        """Get total number of diagnoses"""
+        self.cursor.execute('SELECT COUNT(*) FROM diagnoses')
+        return self.cursor.fetchone()[0]
 
 # ==================== MAIN APPLICATION ====================
 class SkinDiseaseSystem:
@@ -153,6 +202,7 @@ class SkinDiseaseSystem:
         
         # Current user
         self.current_user = None
+        self.current_diagnosis = None
         
         # Colors
         self.colors = {
@@ -163,7 +213,8 @@ class SkinDiseaseSystem:
             'warning': '#F39C12',
             'bg': '#F8F9FA',
             'white': '#FFFFFF',
-            'dark': '#2C3E50'
+            'dark': '#2C3E50',
+            'info': '#16A085'
         }
         
         self.root.configure(bg=self.colors['bg'])
@@ -209,10 +260,11 @@ class SkinDiseaseSystem:
 ✅ Features:
 • Patient Registration & Login
 • AI-Powered Disease Detection
-• Medical Database
+• Report History & Tracking
+• Medical Database Management
+• Export Diagnosis Reports
 • User-friendly Interface
 • Secure Authentication
-• Detailed Reports
 
 👥 For University Students:
 • Computer Science Projects
@@ -432,7 +484,12 @@ class SkinDiseaseSystem:
         notebook.add(detection_tab, text="🔍 Detect Disease")
         self.create_detection_tab(detection_tab)
         
-        # Tab 3: My Profile
+        # Tab 3: Report History
+        history_tab = tk.Frame(notebook, bg=self.colors['bg'])
+        notebook.add(history_tab, text="📋 Report History")
+        self.create_history_tab(history_tab)
+        
+        # Tab 4: My Profile
         profile_tab = tk.Frame(notebook, bg=self.colors['bg'])
         notebook.add(profile_tab, text="👤 My Profile")
         self.create_profile_tab(profile_tab)
@@ -457,6 +514,7 @@ class SkinDiseaseSystem:
 2. Get instant disease diagnosis
 3. View detailed medical information
 4. Save your health reports
+5. Track diagnosis history
         """
         
         tk.Label(welcome_frame, text=welcome_text, font=("Arial", 11),
@@ -604,6 +662,9 @@ class SkinDiseaseSystem:
             self.current_image
         )
         
+        # Store current diagnosis
+        self.current_diagnosis = diagnosis_id
+        
         # Create report
         report = f"""✅ AI ANALYSIS COMPLETE
 {'='*50}
@@ -641,6 +702,181 @@ For real diagnosis, consult a medical professional.
         # Display results
         self.result_text.delete(1.0, tk.END)
         self.result_text.insert(1.0, report)
+        
+        # Show export button
+        messagebox.showinfo("Analysis Complete", "Analysis complete! You can export this report from Report History.")
+    
+    def create_history_tab(self, parent):
+        """Create report history tab"""
+        main_frame = tk.Frame(parent, bg=self.colors['bg'])
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        tk.Label(main_frame, text="📋 DIAGNOSIS HISTORY", 
+                font=("Arial", 18, "bold"), bg=self.colors['bg']).pack(pady=10)
+        
+        # Get patient diagnoses
+        diagnoses = self.db.get_patient_diagnoses(self.current_user['id'])
+        
+        if not diagnoses:
+            tk.Label(main_frame, text="No diagnosis history yet. Start by analyzing a skin image!",
+                    font=("Arial", 12), bg=self.colors['bg'], fg="gray").pack(pady=50)
+            return
+        
+        # Create listbox with scrollbar
+        list_frame = tk.Frame(main_frame, bg="white", relief="solid", bd=1)
+        list_frame.pack(fill="both", expand=True, pady=10)
+        
+        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        listbox = tk.Listbox(list_frame, font=("Arial", 11), yscrollcommand=scrollbar.set)
+        scrollbar.config(command=listbox.yview)
+        listbox.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Add diagnoses to listbox
+        for diagnosis in diagnoses:
+            item = f"🏥 {diagnosis[1]} | 📊 Confidence: {diagnosis[2]}% | 📅 {diagnosis[3][:10]}"
+            listbox.insert(tk.END, item)
+        
+        # Buttons frame
+        button_frame = tk.Frame(main_frame, bg=self.colors['bg'])
+        button_frame.pack(fill="x", pady=10)
+        
+        def export_report():
+            selection = listbox.curselection()
+            if not selection:
+                messagebox.showwarning("Warning", "Please select a report to export!")
+                return
+            
+            idx = selection[0]
+            diagnosis_id = diagnoses[idx][0]
+            self.export_diagnosis_report(diagnosis_id)
+        
+        tk.Button(button_frame, text="📥 Export Selected Report", font=("Arial", 11),
+                 bg=self.colors['success'], fg="white", command=export_report).pack(side="left", padx=5)
+        
+        tk.Button(button_frame, text="🔍 View Details", font=("Arial", 11),
+                 bg=self.colors['primary'], fg="white", 
+                 command=lambda: self.view_diagnosis_details(listbox, diagnoses)).pack(side="left", padx=5)
+    
+    def view_diagnosis_details(self, listbox, diagnoses):
+        """View detailed diagnosis information"""
+        selection = listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a report to view!")
+            return
+        
+        idx = selection[0]
+        diagnosis_id = diagnoses[idx][0]
+        
+        details = self.db.get_diagnosis_details(diagnosis_id, self.current_user['id'])
+        if details:
+            report = f"""📋 DIAGNOSIS DETAILS
+{'='*50}
+
+🏥 DISEASE: {details[1]}
+📊 CONFIDENCE: {details[6]}%
+📅 DATE: {details[7]}
+
+📋 DESCRIPTION:
+{details[2]}
+
+⚠️ SYMPTOMS:
+{details[3]}
+
+💊 TREATMENT:
+{details[4]}
+
+🛡️ PREVENTION:
+{details[5]}
+
+{'='*50}
+📁 Image Path: {details[8]}
+📅 Diagnosis ID: {details[0]}
+"""
+            
+            # Show in messagebox
+            detail_window = tk.Toplevel(self.root)
+            detail_window.title("Diagnosis Details")
+            detail_window.geometry("500x600")
+            
+            text_widget = scrolledtext.ScrolledText(detail_window, font=("Arial", 10), wrap="word")
+            text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+            text_widget.insert(1.0, report)
+            text_widget.config(state="disabled")
+    
+    def export_diagnosis_report(self, diagnosis_id):
+        """Export diagnosis report as text file"""
+        details = self.db.get_diagnosis_details(diagnosis_id, self.current_user['id'])
+        if not details:
+            messagebox.showerror("Error", "Report not found!")
+            return
+        
+        report = f"""=============================================================
+UNIVERSITY SKIN DISEASE DETECTION SYSTEM
+DIAGNOSIS REPORT
+=============================================================
+
+PATIENT INFORMATION:
+Name: {self.current_user['name']}
+Email: {self.current_user['email']}
+Age: {self.current_user['age'] or 'Not specified'}
+Gender: {self.current_user['gender'] or 'Not specified'}
+
+=============================================================
+DIAGNOSIS DETAILS
+=============================================================
+
+Disease: {details[1]}
+Confidence Level: {details[6]}%
+Analysis Date: {details[7]}
+
+DESCRIPTION:
+{details[2]}
+
+SYMPTOMS:
+{details[3]}
+
+TREATMENT OPTIONS:
+{details[4]}
+
+PREVENTION METHODS:
+{details[5]}
+
+=============================================================
+RECOMMENDATIONS:
+1. Consult a dermatologist for professional diagnosis
+2. Follow the recommended treatment plan
+3. Monitor your skin changes regularly
+4. Use sun protection as advised
+
+=============================================================
+IMPORTANT DISCLAIMER:
+This is a simulated AI analysis for educational purposes only.
+This report should NOT be used for actual medical diagnosis.
+Always consult a qualified healthcare professional.
+
+=============================================================
+Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Report ID: {diagnosis_id}
+System: University Skin Disease Detection System v2.0
+=============================================================
+"""
+        
+        # Save file
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"diagnosis_report_{diagnosis_id}.txt"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(report)
+                messagebox.showinfo("Success", f"Report exported successfully!\nLocation: {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to export report: {str(e)}")
     
     def create_profile_tab(self, parent):
         """Create profile tab"""
@@ -684,41 +920,64 @@ For real diagnosis, consult a medical professional.
         main_frame = tk.Frame(self.root, bg=self.colors['bg'])
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # Admin options
-        options_frame = tk.Frame(main_frame, bg="white", relief="solid", bd=1)
-        options_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Notebook for admin tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill="both", expand=True)
         
-        admin_text = """
-👑 ADMINISTRATOR PANEL
+        # Statistics Tab
+        stats_tab = tk.Frame(notebook, bg=self.colors['bg'])
+        notebook.add(stats_tab, text="📊 Statistics")
+        self.create_admin_stats_tab(stats_tab)
+        
+        # Disease Management Tab
+        disease_tab = tk.Frame(notebook, bg=self.colors['bg'])
+        notebook.add(disease_tab, text="🏥 Disease Management")
+        self.create_disease_management_tab(disease_tab)
+    
+    def create_admin_stats_tab(self, parent):
+        """Create admin statistics tab"""
+        stats_frame = tk.Frame(parent, bg="white", relief="solid", bd=1)
+        stats_frame.pack(fill="x", padx=20, pady=20)
+        
+        # Get statistics
+        total_patients = self.db.get_total_patients()
+        total_diagnoses = self.db.get_total_diagnoses()
+        total_diseases = len(self.db.get_all_diseases())
+        
+        admin_text = f"""
+👑 ADMINISTRATOR PANEL - SYSTEM STATISTICS
 
-📊 SYSTEM STATISTICS:
-• Total Diseases: 5 (Pre-loaded)
+📊 SYSTEM METRICS:
+• Total Registered Patients: {total_patients}
+• Total Diagnoses: {total_diagnoses}
+• Total Diseases in Database: {total_diseases}
 • Database: SQLite (skin_disease.db)
 • System Status: Running
-• Version: 1.0.0
 
 🔧 ADMIN FEATURES:
-1. View all registered patients
+1. View system statistics
 2. Manage disease database
-3. View diagnosis history
-4. System monitoring
-5. Data export/backup
+3. Monitor patient data
+4. Export reports
+5. System monitoring
 
 ⚠️ SECURITY NOTE:
 This is a demonstration panel.
 In a real system, proper authentication
 and authorization would be implemented.
 
-📅 System Date: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+📅 System Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🕐 System Time: {datetime.now().strftime('%H:%M:%S')}
+"""
         
-        tk.Label(options_frame, text=admin_text, font=("Arial", 11),
+        tk.Label(stats_frame, text=admin_text, font=("Arial", 11),
                 bg="white", justify="left").pack(padx=20, pady=20)
         
-        # Admin buttons
-        button_frame = tk.Frame(main_frame, bg=self.colors['bg'])
-        button_frame.pack(fill="x", pady=10)
+        # Buttons frame
+        button_frame = tk.Frame(parent, bg=self.colors['bg'])
+        button_frame.pack(fill="x", padx=20, pady=10)
         
-        tk.Button(button_frame, text="📊 View Database", font=("Arial", 11),
+        tk.Button(button_frame, text="📊 View Database Info", font=("Arial", 11),
                  bg=self.colors['primary'], fg="white", width=20,
                  command=self.view_database).pack(side="left", padx=5)
         
@@ -726,28 +985,183 @@ and authorization would be implemented.
                  bg=self.colors['info'], fg="white", width=20,
                  command=self.system_info).pack(side="left", padx=5)
     
+    def create_disease_management_tab(self, parent):
+        """Create disease management tab"""
+        main_frame = tk.Frame(parent, bg=self.colors['bg'])
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        tk.Label(main_frame, text="🏥 DISEASE DATABASE MANAGEMENT", 
+                font=("Arial", 16, "bold"), bg=self.colors['bg']).pack(pady=10)
+        
+        # Disease list
+        list_frame = tk.LabelFrame(main_frame, text=" DISEASE LIST ", 
+                                  font=("Arial", 11, "bold"), bg="white", padx=10, pady=10)
+        list_frame.pack(fill="both", expand=True, pady=10)
+        
+        # Create treeview
+        tree = ttk.Treeview(list_frame, columns=("ID", "Name", "Description"), height=12)
+        tree.column("#0", width=0, stretch="no")
+        tree.column("ID", anchor="w", width=50)
+        tree.column("Name", anchor="w", width=150)
+        tree.column("Description", anchor="w", width=400)
+        
+        tree.heading("#0", text="", anchor="w")
+        tree.heading("ID", text="ID", anchor="w")
+        tree.heading("Name", text="Disease Name", anchor="w")
+        tree.heading("Description", text="Description", anchor="w")
+        
+        # Populate with diseases
+        diseases = self.db.get_all_diseases()
+        for disease in diseases:
+            tree.insert("", "end", values=(disease[0], disease[1], disease[2][:50] + "..."))
+        
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscroll=scrollbar.set)
+        
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Button frame
+        button_frame = tk.Frame(main_frame, bg=self.colors['bg'])
+        button_frame.pack(fill="x", pady=10)
+        
+        tk.Button(button_frame, text="➕ Add New Disease", font=("Arial", 11),
+                 bg=self.colors['success'], fg="white",
+                 command=self.add_new_disease).pack(side="left", padx=5)
+        
+        tk.Button(button_frame, text="👁️ View Details", font=("Arial", 11),
+                 bg=self.colors['primary'], fg="white",
+                 command=lambda: self.view_disease_details(tree, diseases)).pack(side="left", padx=5)
+    
+    def add_new_disease(self):
+        """Add new disease dialog"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add New Disease")
+        dialog.geometry("500x500")
+        
+        # Form fields
+        fields = {
+            'name': ('Disease Name *', tk.Entry),
+            'description': ('Description *', lambda p: tk.Text(p, height=3)),
+            'symptoms': ('Symptoms *', lambda p: tk.Text(p, height=3)),
+            'treatment': ('Treatment *', lambda p: tk.Text(p, height=3)),
+            'prevention': ('Prevention *', lambda p: tk.Text(p, height=3))
+        }
+        
+        entries = {}
+        
+        # Canvas for scrolling
+        canvas = tk.Canvas(dialog, highlightthickness=0)
+        scrollbar = tk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+        
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        for key, (label, widget_func) in fields.items():
+            tk.Label(scrollable_frame, text=label, font=("Arial", 10), bg=self.root.cget('bg')).pack(anchor="w", padx=10, pady=(10, 2))
+            
+            if callable(widget_func):
+                widget = widget_func(scrollable_frame)
+            else:
+                widget = widget_func(scrollable_frame)
+            
+            widget.pack(fill="x", padx=10, pady=(0, 10))
+            entries[key] = widget
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Button frame
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        def save_disease():
+            # Get values
+            name = entries['name'].get().strip() if isinstance(entries['name'], tk.Entry) else None
+            description = entries['description'].get("1.0", tk.END).strip()
+            symptoms = entries['symptoms'].get("1.0", tk.END).strip()
+            treatment = entries['treatment'].get("1.0", tk.END).strip()
+            prevention = entries['prevention'].get("1.0", tk.END).strip()
+            
+            if not all([name, description, symptoms, treatment, prevention]):
+                messagebox.showerror("Error", "Please fill all fields!")
+                return
+            
+            # Add to database
+            if self.db.add_disease(name, description, symptoms, treatment, prevention):
+                messagebox.showinfo("Success", "Disease added successfully!")
+                dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to add disease!")
+        
+        tk.Button(button_frame, text="Save Disease", font=("Arial", 11),
+                 bg=self.colors['success'], fg="white", command=save_disease).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Cancel", font=("Arial", 11),
+                 bg=self.colors['danger'], fg="white", command=dialog.destroy).pack(side="left", padx=5)
+    
+    def view_disease_details(self, tree, diseases):
+        """View disease details"""
+        selection = tree.selection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a disease!")
+            return
+        
+        # Get selected disease
+        selected = tree.item(selection[0])
+        disease_id = int(selected['values'][0])
+        
+        disease = self.db.get_disease_by_id(disease_id)
+        if disease:
+            detail_window = tk.Toplevel(self.root)
+            detail_window.title(f"Disease Details - {disease[1]}")
+            detail_window.geometry("600x500")
+            
+            details_text = f"""
+🏥 DISEASE INFORMATION
+
+📋 Name: {disease[1]}
+
+📝 DESCRIPTION:
+{disease[2]}
+
+⚠️ SYMPTOMS:
+{disease[3]}
+
+💊 TREATMENT:
+{disease[4]}
+
+🛡️ PREVENTION:
+{disease[5]}
+"""
+            
+            text_widget = scrolledtext.ScrolledText(detail_window, font=("Arial", 11), wrap="word")
+            text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+            text_widget.insert(1.0, details_text)
+            text_widget.config(state="disabled")
+    
     def view_database(self):
         """View database information"""
         info = "📊 DATABASE INFORMATION\n"
         info += "=" * 40 + "\n\n"
         
         # Count patients
-        self.db.cursor.execute("SELECT COUNT(*) FROM patients")
-        patient_count = self.db.cursor.fetchone()[0]
+        patient_count = self.db.get_total_patients()
         info += f"👥 Total Patients: {patient_count}\n"
         
         # Count diseases
-        self.db.cursor.execute("SELECT COUNT(*) FROM diseases")
-        disease_count = self.db.cursor.fetchone()[0]
+        disease_count = len(self.db.get_all_diseases())
         info += f"🏥 Total Diseases: {disease_count}\n"
         
         # Count diagnoses
-        self.db.cursor.execute("SELECT COUNT(*) FROM diagnoses")
-        diagnosis_count = self.db.cursor.fetchone()[0]
+        diagnosis_count = self.db.get_total_diagnoses()
         info += f"🔍 Total Diagnoses: {diagnosis_count}\n\n"
         
         info += "📁 Database File: skin_disease.db\n"
         info += "🔧 Status: Connected & Operational\n"
+        info += f"📅 Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         
         messagebox.showinfo("Database Info", info)
     
@@ -758,29 +1172,33 @@ and authorization would be implemented.
 =====================
 
 🎓 PROJECT:
-University Skin Disease Detection System
+University Skin Disease Detection System v2.0
 
-✅ FEATURES:
+✅ ENHANCED FEATURES:
 1. Patient Registration & Login
 2. Skin Image Upload
 3. AI Disease Detection (Simulated)
 4. Database Storage (SQLite)
 5. Detailed Medical Reports
-6. User-friendly Interface
+6. Report History & Tracking
+7. Report Export Functionality
+8. Disease Database Management
+9. Admin Dashboard
+10. User-friendly Interface
 
 🔧 TECHNICAL SPECS:
-• Language: Python 3
+• Language: Python 3.8+
 • GUI: Tkinter
-• Database: SQLite
+• Database: SQLite3
 • Dependencies: None (Pure Python)
 
 📁 FILES:
-• skin_disease_system.py (Main Program)
+• university_skin_system.py (Main Program)
 • skin_disease.db (Database)
 
 👨‍💻 DEVELOPED FOR:
-University Academic Project
-Computer Science Department
+University of Agriculture Peshawar
+Department of Information Technology
 
 ⚠️ DISCLAIMER:
 This is a demonstration system for
