@@ -1,2 +1,47 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source files
+*.py text diff=python
+*.pyi text diff=python
+*.js text
+*.html text
+*.css text
+*.json text
+*.yaml text
+*.yml text
+*.md text diff=markdown
+*.rst text
+
+# Database files
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Images
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.bmp binary
+*.tiff binary
+
+# Model files
+*.pth binary
+*.pt binary
+*.pkl binary
+*.h5 binary
+*.hdf5 binary
+*.onnx binary
+
+# Data files
+*.npy binary
+*.npz binary
+*.csv text
+*.txt text
+
+# Documents
+LICENSE text
+*.ipynb text diff=jupyter
