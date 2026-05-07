@@ -1,0 +1,50 @@
+Acne
+Eczema
+Psoriasis
+Ringworm
+Melanoma
+Basal Cell Carcinoma
+Squamous Cell Carcinoma
+Actinic Keratosis
+Benign Keratosis
+Dermatofibroma
+Vascular Lesion
+Nevus
+Seborrheic Keratosis
+Lichen Planus
+Lupus Erythematosus
+Rosacea
+Wart
+Vitiligo
+Folliculitis
+Cellulitis
+Tinea Versicolor
+Impetigo
+Herpes Zoster
+Herpes Simplex
+Contact Dermatitis
+Pityriasis Rosea
+Pityriasis Alba
+Molluscum Contagiosum
+Scabies
+Atopic Dermatitis
+Hidradenitis Suppurativa
+Onychomycosis
+Tinea Capitis
+Tinea Corporis
+Tinea Pedis
+Tinea Cruris
+Lentigo
+Alopecia Areata
+Mycosis Fungoides
+Keloid
+Urticaria
+Pemphigus Vulgaris
+Bullous Pemphigoid
+Solar Keratosis
+Chilblain
+Granuloma Annulare
+Xerosis
+Prurigo Nodularis
+Pyoderma Gangrenosum
+Porphyria Cutanea Tarda
