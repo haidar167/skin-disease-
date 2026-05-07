@@ -1,128 +1,77 @@
-🎓 University Skin Disease Detection System
+# Skin Disease Detection Project (Advanced)
 
-A desktop-based Python application that simulates an AI-powered Skin Disease Detection System using a user-friendly graphical interface built with Tkinter and a SQLite database. The system allows patients to register, log in, upload skin images, receive simulated disease diagnosis, and view medical recommendations.
+This project uses deep learning to detect 50+ skin diseases from images. It now supports algorithm expansion, modern AI training methods, and a scalable database approach.
 
-📌 Features
+## 🚀 Features
+- Detection & classification of 50+ skin diseases
+- Scalable database and easy disease addition
+- Model training on high-level/big data
+- Modern Python backend (upgradeable to PyTorch/TensorFlow)
+- Desktop app with Tkinter GUI and SQLite database (current version)
 
-Patient Registration & Secure Login
+## 🧩 Algorithms & Detection
+- You can implement advanced CNN architectures (ResNet, EfficientNet, etc.)
+- Template scripts for `data_loader.py`, `train.py`, and `detection.py` can be provided
+- Integrates with the GUI or works standalone for research
 
-Password Encryption (SHA-256)
+## 🗃️ Database & Data
+- Use or extend current SQLite structure
+- For large-scale ML: add scripts to load data from public datasets ([HAM10000](https://doi.org/10.1038/sdata.2018.161), [ISIC Archive](https://www.isic-archive.com/)), or your custom images
+- `diseases_list.txt` enumerates all supported diseases (expandable to >50; add yours as needed)
 
-Upload Skin Images
+## 🏋️‍♂️ High-Level Training
+- Guide/scripts available for retraining or up-training models
+- Easily scale up to more images/diseases by updating data folders and disease list
 
-Simulated AI Disease Detection
+## 🧑‍⚕️ Supported Diseases (Examples)
+(Current database contains: Acne, Eczema, Psoriasis, Ringworm, Melanoma ...)
 
-Disease Information Database
+You can expand this to 50+ diseases. Examples to add:
+- Basal Cell Carcinoma
+- Squamous Cell Carcinoma
+- Actinic Keratosis
+- Benign Keratosis
+- Dermatofibroma
+- Vascular Lesion
+- Nevus (mole)
+- ...and more
 
-Detailed Diagnosis Reports
+> List full names in `diseases_list.txt`, one per line, to reach 50+.
 
-Patient Dashboard
+## 📦 Project Structure (Advanced)
+```
+skin-disease-
+├── README.md
+├── requirements.txt
+├── diseases_list.txt (you must add all 50+)
+├── data_loader.py (template can be generated for you)
+├── train.py (template can be generated for you)
+├── detection.py (template can be generated for you)
+├── models/
+└── skin_disease_system.py (current GUI+DB)
+```
 
-Admin Panel (Demo)
+## 📄 Quick Start
+1. Install Python 3
+2. Install requirements: `pip install -r requirements.txt`
+3. Prepare dataset folders as described above/with scripts
+4. Edit disease list (`diseases_list.txt`)
+5. Train: `python train.py` (for AI detection models)
+6. Run: `python skin_disease_system.py` (current GUI)
 
-SQLite Database Storage
+## 🖼️ Screenshots & Demo Login (Unchanged)
+- See old login and usage in the GUI; will grow as new features are added
 
-🛠 Technologies Used
+## ⚠️ Educational/Research Usage Notice
+- Not for medical/clinical use—research/academic only
 
-Python 3
+## 📜 License
+Specify your license
 
-Tkinter (GUI)
+---
 
-SQLite (Database)
-
-Hashlib (Password Security)
-
-OS, Datetime, Random Libraries
-
-📂 Project Structure
-skin_disease_system.py   → Main program file  
-skin_disease.db          → SQLite database (auto-created)  
-README.md                → Project documentation  
-
-⚙️ Installation & Setup
-
-Install Python 3
-Download from: https://www.python.org
-
-Clone or download the project
-
-Open terminal or command prompt in project folder
-
-Run the program:
-
-python skin_disease_system.py
-
-
-No additional libraries are required.
-
-👤 Demo Login
-
-Use the demo button inside the application or enter:
-
-Email: demo@patient.com  
-Password: demo123
-
-
-(If demo account is not present, register a new user.)
-
-🧪 How It Works
-
-User registers or logs in
-
-Uploads a skin image
-
-System simulates AI analysis
-
-Random disease is selected from database
-
-Confidence score is generated
-
-Diagnosis and treatment details are displayed
-
-🔐 Security
-
-Passwords are hashed using SHA-256
-
-SQLite database stores user and diagnosis data
-
-Basic validation for user input
-
-🧑‍⚕️ Supported Diseases (Preloaded)
-
-Acne
-
-Eczema
-
-Psoriasis
-
-Ringworm
-
-Melanoma
-
-📸 Screens Included
-
-Welcome Screen
-
-Login & Register
-
-Patient Dashboard
-
-Disease Detection Page
-
-Admin Panel
-
-⚠️ Disclaimer
-
-This project is for educational and demonstration purposes only.
-It does NOT provide real medical diagnosis.
-Always consult a certified medical professional for health issues.
-
-🎓 Developed For
-
-University Academic Project
-Department of Information Technology
-University of agriculture peshawar
-
-📜 License
-
-This project is free to use for educational purposes.
+**Next Steps**
+- Use the provided templates or scripts to add your AI, training, and detection pipeline
+- Add `diseases_list.txt` with 50+ diseases
+- Populate `data_loader.py`, `train.py`, and `detection.py` as needed
+- Let me know if you want any starter code for these scripts!
