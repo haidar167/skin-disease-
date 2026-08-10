@@ -63,15 +63,4 @@ skin-disease-
 - See old login and usage in the GUI; will grow as new features are added
 
 ## ⚠️ Educational/Research Usage Notice
-- Not for medical/clinical use—research/academic only
-
-## 📜 License
-Specify your license
-
----
-
-**Next Steps**
-- Use the provided templates or scripts to add your AI, training, and detection pipeline
-- Add `diseases_list.txt` with 50+ diseases
-- Populate `data_loader.py`, `train.py`, and `detection.py` as needed
-- Let me know if you want any starter code for these scripts!
+- Not for medical/clinical use—research/academic 
