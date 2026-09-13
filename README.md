@@ -1,66 +1,65 @@
-# Skin Disease Detection Project (Advanced)
+# Skin Disease Image Classification
 
-This project uses deep learning to detect 50+ skin diseases from images. It now supports algorithm expansion, modern AI training methods, and a scalable database approach.
+An educational PyTorch project for training a ResNet-18 image classifier and
+using its predictions in a Tkinter desktop application. The desktop application
+now uses the trained checkpoint; it no longer generates random diagnoses.
 
-## 🚀 Features
-- Detection & classification of 50+ skin diseases
-- Scalable database and easy disease addition
-- Model training on high-level/big data
-- Modern Python backend (upgradeable to PyTorch/TensorFlow)
-- Desktop app with Tkinter GUI and SQLite database (current version)
+> This software and its model outputs are not clinically validated and must not
+> be used as medical advice or as a substitute for a qualified dermatologist.
 
-## 🧩 Algorithms & Detection
-- You can implement advanced CNN architectures (ResNet, EfficientNet, etc.)
-- Template scripts for `data_loader.py`, `train.py`, and `detection.py` can be provided
-- Integrates with the GUI or works standalone for research
+## Train with real data
 
-## 🗃️ Database & Data
-- Use or extend current SQLite structure
-- For large-scale ML: add scripts to load data from public datasets ([HAM10000](https://doi.org/10.1038/sdata.2018.161), [ISIC Archive](https://www.isic-archive.com/)), or your custom images
-- `diseases_list.txt` enumerates all supported diseases (expandable to >50; add yours as needed)
+1. Install the dependencies:
 
-## 🏋️‍♂️ High-Level Training
-- Guide/scripts available for retraining or up-training models
-- Easily scale up to more images/diseases by updating data folders and disease list
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 🧑‍⚕️ Supported Diseases (Examples)
-(Current database contains: Acne, Eczema, Psoriasis, Ringworm, Melanoma ...)
+2. Obtain properly licensed, de-identified images and arrange them into class
+   folders as described in [DATASET.md](DATASET.md). Real images and checkpoints
+   are excluded from Git.
 
-You can expand this to 50+ diseases. Examples to add:
-- Basal Cell Carcinoma
-- Squamous Cell Carcinoma
-- Actinic Keratosis
-- Benign Keratosis
-- Dermatofibroma
-- Vascular Lesion
-- Nevus (mole)
-- ...and more
+3. Train and validate the model:
 
-> List full names in `diseases_list.txt`, one per line, to reach 50+.
+   ```bash
+   python train.py --data-dir data --epochs 10 --batch-size 16
+   ```
 
-## 📦 Project Structure (Advanced)
-```
-skin-disease-
-├── README.md
-├── requirements.txt
-├── diseases_list.txt (you must add all 50+)
-├── data_loader.py (template can be generated for you)
-├── train.py (template can be generated for you)
-├── detection.py (template can be generated for you)
-├── models/
-└── skin_disease_system.py (current GUI+DB)
+The trainer discovers labels from the folders that are present, creates a
+class-stratified validation split, compensates for class imbalance in the loss,
+and stores both `models/best_model.pt` and `models/last_model.pt`. Each checkpoint
+contains the exact class mapping and preprocessing settings needed by inference.
+Run `python train.py --help` for all options.
+
+## Run inference
+
+Classify one image directly:
+
+```bash
+python detection.py path/to/image.jpg --model models/best_model.pt --top-k 3
 ```
 
-## 📄 Quick Start
-1. Install Python 3
-2. Install requirements: `pip install -r requirements.txt`
-3. Prepare dataset folders as described above/with scripts
-4. Edit disease list (`diseases_list.txt`)
-5. Train: `python train.py` (for AI detection models)
-6. Run: `python skin_disease_system.py` (current GUI)
+Or start the desktop application:
 
-## 🖼️ Screenshots & Demo Login (Unchanged)
-- See old login and usage in the GUI; will grow as new features are added
+```bash
+python university_skin_system.py
+```
 
-## ⚠️ Educational/Research Usage Notice
-- Not for medical/clinical use—research/academic 
+The application loads `models/best_model.pt` by default. To select another
+checkpoint, set `SKIN_DISEASE_MODEL` to its path before starting the application.
+
+## Dataset sources
+
+Potential research datasets include
+[HAM10000](https://doi.org/10.1038/sdata.2018.161) and the
+[ISIC Archive](https://www.isic-archive.com/). Dataset availability does not
+automatically grant permission for every use; follow the source's current terms,
+attribution requirements, and privacy restrictions.
+
+## Other files
+
+- `data_loader.py` validates and loads class folders.
+- `train.py` performs transfer learning and validation.
+- `detection.py` restores checkpoint metadata and predicts labels.
+- `university_skin_system.py` provides the desktop workflow and SQLite history.
+- `diseases_list.txt` is an optional example class vocabulary, not ground truth.

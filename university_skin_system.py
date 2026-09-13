@@ -8,8 +8,9 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import os
 import time
-import random
+import threading
 from datetime import datetime
+from pathlib import Path
 import sqlite3
 import hashlib
 
@@ -96,9 +97,12 @@ class Database:
         
         for disease in diseases:
             self.cursor.execute('''
-                INSERT OR IGNORE INTO diseases (name, description, symptoms, treatment, prevention)
-                VALUES (?, ?, ?, ?, ?)
-            ''', disease)
+                INSERT INTO diseases (name, description, symptoms, treatment, prevention)
+                SELECT ?, ?, ?, ?, ?
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM diseases WHERE name = ? COLLATE NOCASE
+                )
+            ''', disease + (disease[0],))
         
         self.conn.commit()
     
@@ -133,6 +137,29 @@ class Database:
         """Get disease by ID"""
         self.cursor.execute('SELECT * FROM diseases WHERE id=?', (disease_id,))
         return self.cursor.fetchone()
+
+    def get_or_create_disease_by_name(self, name):
+        """Return the database row for a model class without inventing medical advice."""
+        self.cursor.execute(
+            'SELECT * FROM diseases WHERE name = ? COLLATE NOCASE ORDER BY id LIMIT 1',
+            (name,),
+        )
+        disease = self.cursor.fetchone()
+        if disease:
+            return disease
+
+        self.cursor.execute('''
+            INSERT INTO diseases (name, description, symptoms, treatment, prevention)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            name,
+            'Class learned from the configured image dataset.',
+            'Not provided by the training dataset.',
+            'Consult a qualified dermatologist.',
+            'Follow guidance from a qualified medical professional.'
+        ))
+        self.conn.commit()
+        return self.get_disease_by_id(self.cursor.lastrowid)
     
     def save_diagnosis(self, patient_id, disease_id, confidence, image_path):
         """Save diagnosis to database"""
@@ -203,6 +230,10 @@ class SkinDiseaseSystem:
         # Current user
         self.current_user = None
         self.current_diagnosis = None
+        self.predictor = None
+        self.analysis_in_progress = False
+        self.session_token = None
+        self.detection_view_token = None
         
         # Colors
         self.colors = {
@@ -230,11 +261,15 @@ class SkinDiseaseSystem:
     
     def clear_window(self):
         """Clear all widgets"""
+        self.detection_view_token = None
+        self.analysis_in_progress = False
         for widget in self.root.winfo_children():
             widget.destroy()
     
     # ==================== WELCOME SCREEN ====================
     def show_welcome_screen(self):
+        self.current_user = None
+        self.session_token = None
         self.clear_window()
         
         # Main container
@@ -410,6 +445,7 @@ class SkinDiseaseSystem:
                 'gender': user[4],
                 'phone': user[5]
             }
+            self.session_token = object()
             self.show_patient_dashboard()
         else:
             messagebox.showerror("Login Failed", "Invalid email or password!")
@@ -544,6 +580,7 @@ class SkinDiseaseSystem:
     
     def create_detection_tab(self, parent):
         """Create disease detection tab"""
+        self.detection_view_token = object()
         # Main container
         main_frame = tk.Frame(parent, bg=self.colors['bg'])
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -586,7 +623,7 @@ class SkinDiseaseSystem:
                                    "1. Click 'BROWSE IMAGE' to upload skin photo\n"
                                    "2. Click 'START AI ANALYSIS' for diagnosis\n"
                                    "3. View results here\n\n"
-                                   "💡 This system uses simulated AI for demonstration.")
+                                   "💡 Analysis uses the model trained with train.py.")
         
         # Store current image
         self.current_image = None
@@ -632,34 +669,85 @@ class SkinDiseaseSystem:
         if not self.current_image:
             messagebox.showwarning("Warning", "Please select an image first!")
             return
-        
-        # Show processing
-        self.result_text.delete(1.0, tk.END)
-        self.result_text.insert(1.0, "🔬 AI Analysis in progress...\n\nPlease wait 2 seconds...")
-        
-        # Simulate processing in background
-        self.root.after(2000, self.show_analysis_results)
-    
-    def show_analysis_results(self):
-        """Show analysis results"""
-        # Get all diseases
-        diseases = self.db.get_all_diseases()
-        
-        if not diseases:
-            self.result_text.delete(1.0, tk.END)
-            self.result_text.insert(1.0, "⚠️ No diseases found in database!")
+        if self.analysis_in_progress:
+            messagebox.showinfo("Analysis", "An image is already being analyzed.")
             return
         
-        # Select random disease for simulation
-        disease = random.choice(diseases)
-        confidence = random.randint(75, 95)
+        # Show processing
+        self.analysis_in_progress = True
+        self.result_text.delete(1.0, tk.END)
+        self.result_text.insert(1.0, "🔬 AI analysis in progress...\n\nPlease wait...")
+
+        image_path = self.current_image
+        patient_id = self.current_user['id']
+        session_token = self.session_token
+        view_token = self.detection_view_token
+        threading.Thread(
+            target=self._predict_image,
+            args=(image_path, patient_id, session_token, view_token),
+            daemon=True,
+        ).start()
+
+    def _predict_image(self, image_path, patient_id, session_token, view_token):
+        """Run model work outside Tk's event loop and return through a callback."""
+        prediction = None
+        error = None
+        try:
+            if self.predictor is None:
+                from detection import SkinDiseasePredictor
+
+                default_model = Path(__file__).resolve().parent / "models" / "best_model.pt"
+                model_path = os.environ.get("SKIN_DISEASE_MODEL", str(default_model))
+                self.predictor = SkinDiseasePredictor(model_path)
+            prediction = self.predictor.predict(image_path)[0]
+        except Exception as exc:
+            error = str(exc)
+        try:
+            self.root.after(
+                0,
+                self.show_analysis_results,
+                prediction,
+                error,
+                image_path,
+                patient_id,
+                session_token,
+                view_token,
+            )
+        except tk.TclError:
+            pass
+    
+    def show_analysis_results(
+        self, prediction, error, image_path, patient_id, session_token, view_token
+    ):
+        """Show analysis results"""
+        active_patient_id = self.current_user['id'] if self.current_user else None
+        if (
+            patient_id != active_patient_id
+            or session_token is not self.session_token
+            or view_token is not self.detection_view_token
+            or not self.result_text.winfo_exists()
+        ):
+            return
+        self.analysis_in_progress = False
+        if error:
+            self.result_text.delete(1.0, tk.END)
+            self.result_text.insert(
+                1.0,
+                "❌ Analysis could not run.\n\n"
+                f"{error}\n\n"
+                "Train a model with train.py or set SKIN_DISEASE_MODEL to a valid checkpoint."
+            )
+            return
+
+        disease = self.db.get_or_create_disease_by_name(prediction["label"])
+        confidence = round(prediction["confidence"] * 100, 2)
         
         # Save to database
         diagnosis_id = self.db.save_diagnosis(
-            self.current_user['id'],
+            patient_id,
             disease[0],  # disease_id
             confidence,
-            self.current_image
+            image_path
         )
         
         # Store current diagnosis
@@ -692,8 +780,8 @@ class SkinDiseaseSystem:
 4. Use sun protection daily
 
 💡 IMPORTANT:
-This is a simulated AI analysis for academic demonstration.
-For real diagnosis, consult a medical professional.
+This prediction comes from the configured trained model, but it has not been
+clinically validated. For a real diagnosis, consult a medical professional.
 
 📅 Diagnosis ID: {diagnosis_id}
 📅 Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -1177,7 +1265,7 @@ University Skin Disease Detection System v2.0
 ✅ ENHANCED FEATURES:
 1. Patient Registration & Login
 2. Skin Image Upload
-3. AI Disease Detection (Simulated)
+3. Trained-model Disease Classification
 4. Database Storage (SQLite)
 5. Detailed Medical Reports
 6. Report History & Tracking
