@@ -1,65 +1,129 @@
 # Skin Disease Image Classification
 
-An educational PyTorch project for training a ResNet-18 image classifier and
-using its predictions in a Tkinter desktop application. The desktop application
-now uses the trained checkpoint; it no longer generates random diagnoses.
+An educational PyTorch project for training a ResNet-18 image classifier on real skin lesion images and using its predictions in both a **Flask web app** and a **Tkinter desktop app**.
 
-> This software and its model outputs are not clinically validated and must not
-> be used as medical advice or as a substitute for a qualified dermatologist.
+> ⚠️ **Disclaimer:** This software and its model outputs are not clinically validated and must **not** be used as medical advice or as a substitute for a qualified dermatologist.
 
-## Train with real data
+---
 
-1. Install the dependencies:
+## Quick Start (4 steps)
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Obtain properly licensed, de-identified images and arrange them into class
-   folders as described in [DATASET.md](DATASET.md). Real images and checkpoints
-   are excluded from Git.
-
-3. Train and validate the model:
-
-   ```bash
-   python train.py --data-dir data --epochs 10 --batch-size 16
-   ```
-
-The trainer discovers labels from the folders that are present, creates a
-class-stratified validation split, compensates for class imbalance in the loss,
-and stores both `models/best_model.pt` and `models/last_model.pt`. Each checkpoint
-contains the exact class mapping and preprocessing settings needed by inference.
-Run `python train.py --help` for all options.
-
-## Run inference
-
-Classify one image directly:
+### 1. Install dependencies
 
 ```bash
-python detection.py path/to/image.jpg --model models/best_model.pt --top-k 3
+pip install -r requirements.txt
 ```
 
-Or start the desktop application:
+### 2. Download the dataset
 
+**Option A — Real HAM10000 data (recommended):**
+```bash
+# First: get your Kaggle API key from https://www.kaggle.com/settings/account
+# Save it to  ~/.kaggle/kaggle.json
+python setup_dataset.py
+```
+
+**Option B — Synthetic demo data (no Kaggle needed):**
+```bash
+python setup_dataset.py --demo --demo-size 100
+```
+
+This creates `data/` with 7 class folders:
+
+| Folder | Disease |
+|--------|---------|
+| `Melanoma` | Melanoma |
+| `Melanocytic_Nevi` | Common mole |
+| `Basal_Cell_Carcinoma` | Most common skin cancer |
+| `Actinic_Keratosis` | Pre-cancerous lesion |
+| `Benign_Keratosis` | Seborrheic keratosis |
+| `Dermatofibroma` | Benign nodule |
+| `Vascular_Lesion` | Blood vessel lesion |
+
+### 3. Train the model
+
+```bash
+python train.py --data-dir data --epochs 15 --batch-size 32
+```
+
+Key options:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--data-dir` | `data` | Folder with class sub-directories |
+| `--epochs` | `15` | Max training epochs |
+| `--batch-size` | `32` | Mini-batch size |
+| `--learning-rate` | `1e-4` | Initial learning rate |
+| `--patience` | `5` | Early-stopping patience |
+| `--no-pretrained` | — | Skip ImageNet weights |
+
+Training outputs saved to `models/`:
+- `best_model.pt` — checkpoint with best validation accuracy
+- `last_model.pt` — final epoch checkpoint
+- `training_curves.png` — loss & accuracy plots
+- `confusion_matrix.png` — per-class confusion matrix
+
+### 4. Run the app
+
+**Flask web app (browser):**
+```bash
+python app.py
+# Open http://localhost:5000
+```
+
+**Tkinter desktop app:**
 ```bash
 python university_skin_system.py
 ```
 
-The application loads `models/best_model.pt` by default. To select another
-checkpoint, set `SKIN_DISEASE_MODEL` to its path before starting the application.
+---
 
-## Dataset sources
+## CLI inference
 
-Potential research datasets include
-[HAM10000](https://doi.org/10.1038/sdata.2018.161) and the
-[ISIC Archive](https://www.isic-archive.com/). Dataset availability does not
-automatically grant permission for every use; follow the source's current terms,
-attribution requirements, and privacy restrictions.
+```bash
+# Top-3 predictions
+python detection.py path/to/image.jpg --top-k 3
 
-## Other files
+# With Grad-CAM heatmap
+python detection.py path/to/image.jpg --gradcam
+```
 
-- `data_loader.py` validates and loads class folders.
-- `train.py` performs transfer learning and validation.
-- `detection.py` restores checkpoint metadata and predicts labels.
-- `university_skin_system.py` provides the desktop workflow and SQLite history.
-- `diseases_list.txt` is an optional example class vocabulary, not ground truth.
+---
+
+## Project structure
+
+```
+skin-disease-/
+├── train.py                   # Transfer-learning trainer (ResNet-18)
+├── detection.py               # CLI inference + Grad-CAM
+├── data_loader.py             # Dataset loader with augmentation
+├── setup_dataset.py           # Download HAM10000 or create demo data
+├── app.py                     # Flask web application
+├── university_skin_system.py  # Tkinter desktop application
+├── requirements.txt
+├── models/                    # Created after training
+│   ├── best_model.pt
+│   ├── training_curves.png
+│   └── confusion_matrix.png
+├── data/                      # Created by setup_dataset.py
+│   ├── Melanoma/
+│   ├── Melanocytic_Nevi/
+│   └── ...
+└── templates/                 # Flask HTML templates
+```
+
+---
+
+## Dataset
+
+The recommended dataset is **HAM10000** (Human Against Machine with 10000 training images):
+- [HAM10000 paper](https://doi.org/10.1038/sdata.2018.161)
+- [ISIC Archive](https://www.isic-archive.com/)
+
+Always follow the source's licensing, attribution, and privacy requirements.
+
+---
+
+## License & safety
+
+This project is for **educational purposes only**. The model outputs must not be used for clinical decision-making. Always consult a qualified dermatologist.
