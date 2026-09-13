@@ -1,220 +1,265 @@
 {% extends "base.html" %}
-
-{% block title %}Disease Detection - Skin Disease Detection{% endblock %}
-
-{% block extra_css %}
-<style>
-    .upload-area {
-        border: 2px dashed #3498db;
-        border-radius: 10px;
-        padding: 3rem;
-        text-align: center;
-        cursor: pointer;
-        transition: 0.3s;
-        background: #f8f9fa;
-    }
-
-    .upload-area:hover {
-        background: #ecf0f1;
-        border-color: #2980b9;
-    }
-
-    .upload-area.active {
-        background: #d4edda;
-        border-color: #27ae60;
-    }
-
-    .result-box {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        margin-top: 2rem;
-        display: none;
-    }
-
-    .result-box.show {
-        display: block;
-    }
-
-    .confidence-bar {
-        width: 100%;
-        height: 30px;
-        background: rgba(255,255,255,0.3);
-        border-radius: 15px;
-        overflow: hidden;
-        margin: 1rem 0;
-    }
-
-    .confidence-fill {
-        height: 100%;
-        background: #27ae60;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-    }
-</style>
-{% endblock %}
+{% block title %}AI Detection - Skin Disease System{% endblock %}
 
 {% block content %}
-<h1 style="color: white; margin-bottom: 2rem;">🔍 Skin Disease Detection</h1>
+<div class="container py-4">
 
-<div class="card">
-    <h2 style="margin-bottom: 1rem; color: #2c3e50;">📤 Upload Image for Analysis</h2>
-    
-    <div class="upload-area" id="uploadArea">
-        <h3>🖼️ Click to upload or drag and drop</h3>
-        <p style="color: #666;">Supported formats: JPG, PNG, BMP, GIF</p>
-        <input type="file" id="fileInput" accept="image/*" style="display: none;">
-    </div>
+  <div class="page-header mb-4">
+    <h1>🔬 AI Skin Disease Detection</h1>
+    <p class="text-muted">Upload a dermoscopic image for instant AI-powered analysis</p>
+  </div>
 
-    <div id="imagePreview" style="margin-top: 2rem; display: none;">
-        <img id="previewImg" src="" alt="Preview" style="max-width: 100%; height: auto; border-radius: 10px; max-height: 400px;">
-    </div>
+  {% if not model_ready %}
+  <div class="alert alert-warning mb-4">
+    ⚠️ <strong>Model not loaded.</strong>
+    Run <code>python train.py --data-dir data --epochs 15</code> first, then restart the app.
+  </div>
+  {% endif %}
 
-    <button id="analyzeBtn" class="btn btn-success" style="width: 100%; margin-top: 2rem; display: none; font-size: 1.1rem; padding: 1rem;">
-        🔬 START AI ANALYSIS
-    </button>
+  <div class="detection-grid">
 
-    <div id="loading" style="display: none; text-align: center; margin-top: 2rem;">
-        <p style="font-size: 1.2rem; color: #3498db;">⏳ Analyzing image...</p>
-        <div style="margin-top: 1rem;">
-            <div style="border: 4px solid #ecf0f1; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+    <!-- ── Upload panel ─────────────────────────────────────── -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title mb-3">📤 Upload Image</h5>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-icon">🖼️</div>
+          <p class="mb-1">Drag &amp; drop an image here</p>
+          <p class="text-muted small mb-0">or click to browse</p>
+          <p class="text-muted small mt-2">JPG · PNG · BMP &nbsp;|&nbsp; max 10 MB</p>
+          <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,.bmp" hidden>
         </div>
+
+        <div id="previewBox" class="preview-box" style="display:none">
+          <img id="previewImg" src="" alt="Preview">
+          <button class="btn-clear" id="clearBtn">✕</button>
+        </div>
+
+        <button class="btn-analyse mt-3" id="analyseBtn"
+                {% if not model_ready %}disabled{% endif %}>
+          🔍 Analyse Image
+        </button>
+
+        <p class="disclaimer mt-3">
+          ⚠️ For educational use only — not a medical diagnosis.
+          Always consult a qualified dermatologist.
+        </p>
+      </div>
     </div>
+
+    <!-- ── Results panel ────────────────────────────────────── -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title mb-3">📊 Analysis Results</h5>
+
+        <div id="placeholder" class="placeholder-state">
+          <div class="placeholder-icon">🔬</div>
+          <p>Upload an image and click Analyse</p>
+        </div>
+
+        <div id="spinner" class="spinner-state" style="display:none">
+          <div class="spin-ring"></div>
+          <p class="mt-3">Analysing image…</p>
+        </div>
+
+        <div id="results" style="display:none"></div>
+      </div>
+    </div>
+
+  </div><!-- /.detection-grid -->
 </div>
 
-<!-- Results -->
-<div id="resultBox" class="card result-box">
-    <h2 style="color: white; margin-bottom: 1.5rem;">✅ Analysis Complete</h2>
-    
-    <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;">
-        <h3 id="diseaseName" style="font-size: 1.8rem; margin-bottom: 1rem;"></h3>
-        
-        <div>
-            <p style="margin-bottom: 0.5rem;"><strong>📊 Confidence Level:</strong></p>
-            <div class="confidence-bar">
-                <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
-            </div>
-        </div>
-    </div>
-
-    <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 10px;">
-        <h4 style="margin-bottom: 1rem;">📋 Medical Information:</h4>
-        
-        <div style="margin-bottom: 1rem;">
-            <p><strong>📝 Description:</strong></p>
-            <p id="diseaseDescription"></p>
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-            <p><strong>⚠️ Symptoms:</strong></p>
-            <p id="diseaseSymptoms"></p>
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-            <p><strong>💊 Treatment:</strong></p>
-            <p id="diseaseTreatment"></p>
-        </div>
-
-        <div>
-            <p><strong>🛡️ Prevention:</strong></p>
-            <p id="diseasePrevention"></p>
-        </div>
-    </div>
-
-    <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 10px; margin-top: 1.5rem;">
-        <p><strong>⚠️ IMPORTANT DISCLAIMER:</strong></p>
-        <p>This is an AI-assisted analysis for educational purposes only. Always consult with a qualified dermatologist for medical diagnosis and treatment.</p>
-    </div>
-</div>
-
+<!-- ── Styles ─────────────────────────────────────────────────────────────── -->
 <style>
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
+.detection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 768px) { .detection-grid { grid-template-columns: 1fr; } }
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed #b0c4de;
+  border-radius: 12px;
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .25s, background .25s;
+  background: #f7faff;
+}
+.drop-zone:hover, .drop-zone.over { border-color: #2E86C1; background: #e8f4fd; }
+.drop-icon { font-size: 48px; margin-bottom: 8px; }
+
+/* Preview */
+.preview-box { position: relative; margin-top: 16px; border-radius: 10px; overflow: hidden; }
+.preview-box img { width: 100%; max-height: 280px; object-fit: contain; border-radius: 10px; }
+.btn-clear {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,.55); color: #fff; border: none;
+  border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 13px;
+}
+
+/* Analyse button */
+.btn-analyse {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, #2E86C1, #3498DB);
+  color: #fff; border: none; border-radius: 8px;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: opacity .2s, transform .1s;
+}
+.btn-analyse:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+.btn-analyse:disabled { opacity: .45; cursor: not-allowed; }
+
+.disclaimer { font-size: 11px; color: #888; text-align: center; }
+
+/* Placeholder */
+.placeholder-state { text-align: center; padding: 60px 20px; color: #aaa; }
+.placeholder-icon  { font-size: 64px; margin-bottom: 12px; }
+
+/* Spinner */
+.spinner-state { text-align: center; padding: 40px 20px; color: #666; }
+.spin-ring {
+  width: 48px; height: 48px; margin: 0 auto;
+  border: 4px solid #eee; border-top-color: #2E86C1;
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Prediction bars */
+.pred-item { margin-bottom: 18px; }
+.pred-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.pred-name { font-size: 14px; font-weight: 500; }
+.pred-pct  { font-size: 14px; font-weight: 700; color: #2E86C1; }
+.pred-name.top { color: #1a7a40; }
+.pred-pct.top  { color: #1a7a40; }
+.bar-track { height: 10px; background: #eee; border-radius: 99px; overflow: hidden; }
+.bar-fill  {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #2E86C1, #85c1e9);
+  width: 0; transition: width 1s ease;
+}
+.bar-fill.top { background: linear-gradient(90deg, #1a7a40, #27AE60); }
+.badge-top {
+  display: inline-block; font-size: 10px; padding: 1px 7px;
+  background: #1a7a40; color: #fff; border-radius: 4px; margin-left: 6px;
+  vertical-align: middle;
+}
+.result-image { width: 100%; border-radius: 8px; margin-bottom: 20px; max-height: 200px; object-fit: contain; }
+.alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; }
+.alert-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
+.alert-danger   { background: #f8d7da; border: 1px solid #f5c2c7; color: #842029; }
 </style>
 
+<!-- ── Script ─────────────────────────────────────────────────────────────── -->
 <script>
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const imagePreview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
-    const loading = document.getElementById('loading');
-    const resultBox = document.getElementById('resultBox');
+const dropZone    = document.getElementById('dropZone');
+const imageInput  = document.getElementById('imageInput');
+const previewBox  = document.getElementById('previewBox');
+const previewImg  = document.getElementById('previewImg');
+const clearBtn    = document.getElementById('clearBtn');
+const analyseBtn  = document.getElementById('analyseBtn');
+const placeholder = document.getElementById('placeholder');
+const spinner     = document.getElementById('spinner');
+const results     = document.getElementById('results');
+let selectedFile  = null;
 
-    uploadArea.addEventListener('click', () => fileInput.click());
+// ── File selection ──────────────────────────────────────────────────────────
+dropZone.addEventListener('click', () => imageInput.click());
+['dragover', 'dragenter'].forEach(ev =>
+  dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('over'); }));
+['dragleave', 'dragend'].forEach(ev =>
+  dropZone.addEventListener(ev, () => dropZone.classList.remove('over')));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+imageInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
 
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('active');
-    });
+function setFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => { previewImg.src = e.target.result; };
+  reader.readAsDataURL(file);
+  dropZone.style.display  = 'none';
+  previewBox.style.display = 'block';
+}
 
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('active');
-    });
+clearBtn.addEventListener('click', () => {
+  selectedFile = null;
+  imageInput.value = '';
+  dropZone.style.display  = 'block';
+  previewBox.style.display = 'none';
+  resetResults();
+});
 
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('active');
-        fileInput.files = e.dataTransfer.files;
-        handleFileSelect();
-    });
+function resetResults() {
+  placeholder.style.display = 'block';
+  spinner.style.display     = 'none';
+  results.style.display     = 'none';
+  results.innerHTML         = '';
+}
 
-    fileInput.addEventListener('change', handleFileSelect);
+// ── Analyse ─────────────────────────────────────────────────────────────────
+analyseBtn.addEventListener('click', async () => {
+  if (!selectedFile) { alert('Please select an image first.'); return; }
+  placeholder.style.display = 'none';
+  spinner.style.display     = 'block';
+  results.style.display     = 'none';
+  results.innerHTML         = '';
+  analyseBtn.disabled       = true;
 
-    function handleFileSelect() {
-        const file = fileInput.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                previewImg.src = e.target.result;
-                imagePreview.style.display = 'block';
-                analyzeBtn.style.display = 'block';
-                resultBox.classList.remove('show');
-            };
-            reader.readAsDataURL(file);
-        }
+  const fd = new FormData();
+  fd.append('image', selectedFile);
+
+  try {
+    const resp = await fetch('/detect', { method: 'POST', body: fd });
+    const data = await resp.json();
+    spinner.style.display  = 'none';
+    results.style.display  = 'block';
+    if (data.error) {
+      results.innerHTML = `<div class="alert alert-danger">❌ ${data.error}</div>`;
+    } else {
+      renderResults(data);
     }
+  } catch (err) {
+    spinner.style.display  = 'none';
+    results.style.display  = 'block';
+    results.innerHTML = `<div class="alert alert-danger">❌ Network error: ${err.message}</div>`;
+  }
+  analyseBtn.disabled = false;
+});
 
-    analyzeBtn.addEventListener('click', async () => {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-
-        analyzeBtn.style.display = 'none';
-        loading.style.display = 'block';
-
-        try {
-            const response = await fetch('{{ url_for("analyze") }}', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                document.getElementById('diseaseName').textContent = '🏥 ' + data.disease;
-                document.getElementById('diseaseDescription').textContent = data.description;
-                document.getElementById('diseaseSymptoms').textContent = data.symptoms;
-                document.getElementById('diseaseTreatment').textContent = data.treatment;
-                document.getElementById('diseasePrevention').textContent = data.prevention;
-                
-                document.getElementById('confidenceFill').style.width = data.confidence + '%';
-                document.getElementById('confidenceFill').textContent = data.confidence.toFixed(1) + '%';
-
-                resultBox.classList.add('show');
-            } else {
-                alert('Error: ' + data.error);
-            }
-        } catch (error) {
-            alert('Error: ' + error.message);
-        } finally {
-            loading.style.display = 'none';
-            analyzeBtn.style.display = 'block';
-        }
-    });
+function renderResults(data) {
+  const preds = data.all_predictions;
+  let html = '';
+  if (data.image_url) {
+    html += `<img class="result-image" src="${data.image_url}" alt="Uploaded image">`;
+  }
+  preds.forEach((p, i) => {
+    const isTop = i === 0;
+    const name  = p.name.replace(/_/g, ' ');
+    const conf  = p.confidence.toFixed(1);
+    html += `
+      <div class="pred-item">
+        <div class="pred-header">
+          <span class="pred-name ${isTop ? 'top' : ''}">
+            ${name}${isTop ? '<span class="badge-top">Top Match</span>' : ''}
+          </span>
+          <span class="pred-pct ${isTop ? 'top' : ''}">${conf}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill ${isTop ? 'top' : ''}"
+               style="width:0" data-w="${conf}%"></div>
+        </div>
+      </div>`;
+  });
+  results.innerHTML = html;
+  // Animate bars after paint
+  requestAnimationFrame(() => setTimeout(() => {
+    results.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.w; });
+  }, 30));
+}
 </script>
 {% endblock %}
