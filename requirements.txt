@@ -5,3 +5,8 @@ numpy
 scikit-learn
 tqdm
 matplotlib
+seaborn
+flask>=3.0
+werkzeug
+kaggle
+opencv-python-headless
