@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Skin Disease Detection{% endblock %}
+
+{% block content %}
+<h1 style="color: white; margin-bottom: 2rem;">👤 My Profile</h1>
+
+<div class="card">
+    <h2 style="margin-bottom: 1.5rem; color: #2c3e50;">📋 Account Information</h2>
+    
+    <div style="display: grid; gap: 1.5rem;">
+        <div style="padding: 1rem; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #3498db;">
+            <p style="color: #666; margin-bottom: 0.3rem;">👤 Patient ID:</p>
+            <p style="font-size: 1.2rem; color: #2c3e50; font-weight: bold;">{{ user_id }}</p>
+        </div>
+
+        <div style="padding: 1rem; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #3498db;">
+            <p style="color: #666; margin-bottom: 0.3rem;">👤 Full Name:</p>
+            <p style="font-size: 1.2rem; color: #2c3e50; font-weight: bold;">{{ user_name }}</p>
+        </div>
+
+        <div style="padding: 1rem; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #3498db;">
+            <p style="color: #666; margin-bottom: 0.3rem;">📧 Email Address:</p>
+            <p style="font-size: 1.2rem; color: #2c3e50; font-weight: bold;">{{ user_email }}</p>
+        </div>
+    </div>
+
+    <hr style="margin: 2rem 0;">
+
+    <h3 style="margin-bottom: 1rem; color: #2c3e50;">⚙️ Account Settings</h3>
+    
+    <div style="display: grid; gap: 1rem;">
+        <a href="{{ url_for('dashboard') }}" class="btn">🏠 Back to Dashboard</a>
+        <a href="{{ url_for('history') }}" class="btn">📋 View My Diagnoses</a>
+        <a href="{{ url_for('detection') }}" class="btn btn-success">🔍 Analyze New Image</a>
+    </div>
+</div>
+{% endblock %}

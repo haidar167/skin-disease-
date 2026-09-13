@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Skin Disease Detection{% endblock %}
+
+{% block content %}
+<h1 style="color: white; margin-bottom: 2rem;">🏠 Patient Dashboard</h1>
+
+<!-- Statistics -->
+<div class="stats">
+    <div class="stat-box">
+        <h3>{{ stats.patients }}</h3>
+        <p>👥 Total Patients</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ stats.diseases }}</h3>
+        <p>🦠 Diseases</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ stats.diagnoses }}</h3>
+        <p>📋 Diagnoses</p>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h2 style="margin-bottom: 1rem; color: #2c3e50;">⚡ Quick Actions</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        <a href="{{ url_for('detection') }}" class="btn btn-success">🔍 Detect Disease</a>
+        <a href="{{ url_for('history') }}" class="btn">📋 View History</a>
+        <a href="{{ url_for('profile') }}" class="btn">👤 My Profile</a>
+    </div>
+</div>
+
+<!-- Diseases Database -->
+<div class="card">
+    <h2 style="margin-bottom: 1rem; color: #2c3e50;">🦠 Available Diseases</h2>
+    
+    {% if diseases %}
+        {% for disease in diseases %}
+        <div class="disease-card">
+            <h3>{{ disease.name }}</h3>
+            <p><strong>📝 Description:</strong> {{ disease.description }}</p>
+            <p><strong>⚠️ Symptoms:</strong> {{ disease.symptoms }}</p>
+            <p><strong>💊 Treatment:</strong> {{ disease.treatment }}</p>
+            <p><strong>🛡️ Prevention:</strong> {{ disease.prevention }}</p>
+        </div>
+        {% endfor %}
+    {% else %}
+    <p>No diseases available.</p>
+    {% endif %}
+</div>
+{% endblock %}
