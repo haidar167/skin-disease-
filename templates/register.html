@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Skin Disease Detection{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="card" style="width: 100%; max-width: 500px;">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #2c3e50;">📝 New Patient Registration</h2>
+
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div>
+                <label for="name">👤 Full Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div>
+                <label for="email">📧 Email Address:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div>
+                <label for="password">🔑 Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <div>
+                <label for="age">🎂 Age:</label>
+                <input type="number" id="age" name="age">
+            </div>
+
+            <div>
+                <label for="gender">🚻 Gender:</label>
+                <select id="gender" name="gender">
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="phone">📞 Phone Number:</label>
+                <input type="tel" id="phone" name="phone">
+            </div>
+
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Register Now</button>
+        </form>
+
+        <hr style="margin: 2rem 0;">
+
+        <div style="text-align: center;">
+            <p>Already have an account? <a href="{{ url_for('login') }}" style="color: #3498db;">Login here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

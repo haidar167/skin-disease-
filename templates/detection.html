@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Disease Detection - Skin Disease Detection{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-area {
+        border: 2px dashed #3498db;
+        border-radius: 10px;
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.3s;
+        background: #f8f9fa;
+    }
+
+    .upload-area:hover {
+        background: #ecf0f1;
+        border-color: #2980b9;
+    }
+
+    .upload-area.active {
+        background: #d4edda;
+        border-color: #27ae60;
+    }
+
+    .result-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-top: 2rem;
+        display: none;
+    }
+
+    .result-box.show {
+        display: block;
+    }
+
+    .confidence-bar {
+        width: 100%;
+        height: 30px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 15px;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: #27ae60;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="color: white; margin-bottom: 2rem;">🔍 Skin Disease Detection</h1>
+
+<div class="card">
+    <h2 style="margin-bottom: 1rem; color: #2c3e50;">📤 Upload Image for Analysis</h2>
+    
+    <div class="upload-area" id="uploadArea">
+        <h3>🖼️ Click to upload or drag and drop</h3>
+        <p style="color: #666;">Supported formats: JPG, PNG, BMP, GIF</p>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    </div>
+
+    <div id="imagePreview" style="margin-top: 2rem; display: none;">
+        <img id="previewImg" src="" alt="Preview" style="max-width: 100%; height: auto; border-radius: 10px; max-height: 400px;">
+    </div>
+
+    <button id="analyzeBtn" class="btn btn-success" style="width: 100%; margin-top: 2rem; display: none; font-size: 1.1rem; padding: 1rem;">
+        🔬 START AI ANALYSIS
+    </button>
+
+    <div id="loading" style="display: none; text-align: center; margin-top: 2rem;">
+        <p style="font-size: 1.2rem; color: #3498db;">⏳ Analyzing image...</p>
+        <div style="margin-top: 1rem;">
+            <div style="border: 4px solid #ecf0f1; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Results -->
+<div id="resultBox" class="card result-box">
+    <h2 style="color: white; margin-bottom: 1.5rem;">✅ Analysis Complete</h2>
+    
+    <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;">
+        <h3 id="diseaseName" style="font-size: 1.8rem; margin-bottom: 1rem;"></h3>
+        
+        <div>
+            <p style="margin-bottom: 0.5rem;"><strong>📊 Confidence Level:</strong></p>
+            <div class="confidence-bar">
+                <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 10px;">
+        <h4 style="margin-bottom: 1rem;">📋 Medical Information:</h4>
+        
+        <div style="margin-bottom: 1rem;">
+            <p><strong>📝 Description:</strong></p>
+            <p id="diseaseDescription"></p>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <p><strong>⚠️ Symptoms:</strong></p>
+            <p id="diseaseSymptoms"></p>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <p><strong>💊 Treatment:</strong></p>
+            <p id="diseaseTreatment"></p>
+        </div>
+
+        <div>
+            <p><strong>🛡️ Prevention:</strong></p>
+            <p id="diseasePrevention"></p>
+        </div>
+    </div>
+
+    <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 10px; margin-top: 1.5rem;">
+        <p><strong>⚠️ IMPORTANT DISCLAIMER:</strong></p>
+        <p>This is an AI-assisted analysis for educational purposes only. Always consult with a qualified dermatologist for medical diagnosis and treatment.</p>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    const loading = document.getElementById('loading');
+    const resultBox = document.getElementById('resultBox');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('active');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('active');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('active');
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect();
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                imagePreview.style.display = 'block';
+                analyzeBtn.style.display = 'block';
+                resultBox.classList.remove('show');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    analyzeBtn.addEventListener('click', async () => {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        analyzeBtn.style.display = 'none';
+        loading.style.display = 'block';
+
+        try {
+            const response = await fetch('{{ url_for("analyze") }}', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('diseaseName').textContent = '🏥 ' + data.disease;
+                document.getElementById('diseaseDescription').textContent = data.description;
+                document.getElementById('diseaseSymptoms').textContent = data.symptoms;
+                document.getElementById('diseaseTreatment').textContent = data.treatment;
+                document.getElementById('diseasePrevention').textContent = data.prevention;
+                
+                document.getElementById('confidenceFill').style.width = data.confidence + '%';
+                document.getElementById('confidenceFill').textContent = data.confidence.toFixed(1) + '%';
+
+                resultBox.classList.add('show');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            loading.style.display = 'none';
+            analyzeBtn.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}
