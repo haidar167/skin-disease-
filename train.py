@@ -1,7 +1,9 @@
 """Train a ResNet-18 classifier on a real folder-based image dataset.
 
+Optimised for: AMD Ryzen 5 7430U (6 cores / 12 threads, ~7.4 GB RAM, CPU-only).
+
 Usage:
-    python train.py --data-dir data --epochs 15 --batch-size 32
+    python train.py --data-dir data --epochs 30 --batch-size 8
     python train.py --help
 """
 
@@ -31,15 +33,20 @@ def parse_args():
     parser.add_argument("--classes-file",
                         help="Optional ordered list of classes; default = auto-discover folders")
     parser.add_argument("--output-dir",       default=Path(__file__).resolve().parent / "models")
-    parser.add_argument("--epochs",           type=int,   default=15)
-    parser.add_argument("--batch-size",       type=int,   default=32)
+    parser.add_argument("--epochs",           type=int,   default=30,
+                        help="Number of training epochs (default: 30)")
+    parser.add_argument("--batch-size",       type=int,   default=8,
+                        help="Batch size — keep at 8 for 7.4 GB RAM (default: 8)")
     parser.add_argument("--learning-rate",    type=float, default=1e-4)
     parser.add_argument("--image-size",       type=int,   default=224)
     parser.add_argument("--validation-split", type=float, default=0.2)
-    parser.add_argument("--workers",          type=int,   default=0)
+    parser.add_argument("--workers",          type=int,   default=4,
+                        help="DataLoader workers — 4 for Ryzen 5 7430U (default: 4)")
     parser.add_argument("--seed",             type=int,   default=42)
-    parser.add_argument("--patience",         type=int,   default=5,
-                        help="Early-stopping patience in epochs (default: 5)")
+    parser.add_argument("--num-threads",      type=int,   default=10,
+                        help="PyTorch CPU threads — 10 of 12 available (default: 10)")
+    parser.add_argument("--patience",         type=int,   default=7,
+                        help="Early-stopping patience in epochs (default: 7)")
     parser.add_argument("--no-pretrained",    action="store_true",
                         help="Skip ImageNet pre-training (useful for offline smoke tests)")
     return parser.parse_args()
@@ -209,11 +216,18 @@ def main():
     args = parse_args()
     torch.manual_seed(args.seed)
 
+    # ── CPU optimisation for AMD Ryzen 5 7430U ──────────────────────────────
+    torch.set_num_threads(args.num_threads)
+    torch.set_num_interop_threads(2)   # 2 threads for inter-op parallelism
+
     device     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"🖥️  Device : {device}")
+    print(f"🖥️  Device      : {device}")
+    print(f"🧵  CPU threads : {torch.get_num_threads()} / {args.num_threads} allocated")
+    print(f"📦  Batch size  : {args.batch_size}")
+    print(f"👷  Workers     : {args.workers}")
 
     train_tf, val_tf = make_transforms(args.image_size)
 
@@ -234,11 +248,13 @@ def main():
     train_loader = DataLoader(Subset(full_ds, train_idx),
                               batch_size=args.batch_size, shuffle=True,
                               num_workers=args.workers,
-                              pin_memory=(device.type == "cuda"))
+                              pin_memory=False,        # CPU-only: pin_memory wastes RAM
+                              persistent_workers=(args.workers > 0))
     val_loader   = DataLoader(Subset(val_ds, val_idx),
                               batch_size=args.batch_size, shuffle=False,
                               num_workers=args.workers,
-                              pin_memory=(device.type == "cuda"))
+                              pin_memory=False,
+                              persistent_workers=(args.workers > 0))
 
     model     = build_model(len(classes), pretrained=not args.no_pretrained).to(device)
     weights   = compute_class_weights([targets[i] for i in train_idx], len(classes), device)
@@ -246,7 +262,17 @@ def main():
     optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
 
-    best_val_acc, patience_counter = 0.0, 0
+    best_model_path = output_dir / "best_model.pt"
+    best_val_acc = 0.0
+    if best_model_path.exists():
+        try:
+            existing_best = torch.load(best_model_path, map_location="cpu")
+            best_val_acc = float(existing_best.get("val_acc", 0.0))
+            print(f"📌 Existing best model checkpoint loaded (Epoch {existing_best.get('epoch', '?')} | Val Acc: {best_val_acc*100:.2f}%)")
+        except Exception:
+            best_val_acc = 0.0
+
+    patience_counter = 0
     train_losses, val_losses, train_accs, val_accs = [], [], [], []
 
     print(f"\n🚀 Training for up to {args.epochs} epochs  (early-stop patience={args.patience})\n")

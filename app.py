@@ -242,10 +242,17 @@ def dashboard():
     history     = db.get_history(session["user"]["id"], limit=5)
     model_ready = get_predictor() is not None
     s           = db.stats()
+    # Fetch diseases list for the dashboard
+    with db.conn() as cx:
+        diseases = [dict(r) for r in cx.execute("SELECT * FROM diseases").fetchall()]
+    stats = {
+        "patients":  s["patients"],
+        "diagnoses": s["diagnoses"],
+        "diseases":  len(diseases),
+    }
     return render_template("dashboard.html", user=session["user"],
                            history=history, model_ready=model_ready,
-                           total_patients=s["patients"],
-                           total_diagnoses=s["diagnoses"])
+                           stats=stats, diseases=diseases)
 
 
 @app.route("/detect", methods=["GET", "POST"])

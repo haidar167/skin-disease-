@@ -57,7 +57,7 @@ def download_ham10000():
     print("📥  Downloading HAM10000 from Kaggle (~3 GB) …")
     ret = os.system(
         f'kaggle datasets download '
-        f'-d kmader/skin-lesion-analysis-toward-melanoma-detection '
+        f'-d kmader/skin-cancer-mnist-ham10000 '
         f'-p "{raw}" --unzip'
     )
     if ret != 0:

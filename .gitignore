@@ -1,0 +1,9 @@
+﻿__pycache__/
+*.pyc
+data/
+uploads/
+*.db
+.env
+.venv/
+venv/
+models/last_model.pt
