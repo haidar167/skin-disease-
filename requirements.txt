@@ -10,3 +10,4 @@ flask>=3.0
 werkzeug
 opencv-python-headless
 gunicorn
+gradio>=4.0
